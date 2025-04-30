@@ -20,69 +20,67 @@ const User = mongoose.models.User || mongoose.model('User', UserSchema);
 module.exports = async (req, res) => {
   await connectDB();
 
+  // Agregar cabeceras CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', 'https://jiga-ecru.vercel.app');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Manejo de preflight OPTIONS
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   const { method, url } = req;
 
   if (method === 'POST' && url === '/api/auth/register') {
     const { name, email, password } = req.body;
 
-    // Validaciones básicas
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Todos los campos son obligatorios' });
     }
 
-    // Verificar si el usuario ya existe
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'El usuario ya existe' });
     }
 
-    // Hashear la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Crear nuevo usuario
     const newUser = new User({ name, email, password: hashedPassword });
     await newUser.save();
 
-    // Generar token
     const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
       expiresIn: '1h',
     });
 
     return res.status(201).json({ token });
+
   } else if (method === 'POST' && url === '/api/auth/login') {
     const { name, email, password } = req.body;
 
-    // Validaciones básicas
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Todos los campos son obligatorios' });
     }
 
-    // Buscar usuario por correo electrónico
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Usuario no encontrado' });
+    if (!user || user.name !== name) {
+      return res.status(400).json({ message: 'Credenciales incorrectas' });
     }
 
-    // Verificar el nombre
-    if (user.name !== name) {
-      return res.status(400).json({ message: 'Nombre incorrecto' });
-    }
-
-    // Verificar la contraseña
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Contraseña incorrecta' });
+      return res.status(400).json({ message: 'Credenciales incorrectas' });
     }
 
-    // Generar token
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: '1h',
     });
 
     return res.status(200).json({ token });
+
   } else if (method === 'GET' && url === '/api/auth/users') {
     try {
-      const users = await User.find({}, '-password'); // Excluye el campo de contraseña
+      const users = await User.find({}, '-password');
       return res.status(200).json(users);
     } catch (error) {
       console.error('Error al obtener usuarios:', error);
