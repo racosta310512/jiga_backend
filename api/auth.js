@@ -47,6 +47,14 @@ module.exports = async (req, res) => {
     });
 
     return res.status(201).json({ token });
+  } else if (req.method === 'GET') {
+    try {
+      const users = await User.find({}, '-password'); // Excluye el campo de contraseña
+      return res.status(200).json(users);
+    } catch (error) {
+      console.error('Error al obtener usuarios:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
   } else {
     return res.status(405).json({ message: 'Método no permitido' });
   }
