@@ -11,29 +11,29 @@ const connectDB = async () => {
 // Modelo de Usuario
 const UserSchema = new mongoose.Schema({
   name: String,
-  email: String,
+  email: { type: String, unique: true },
   password: String,
 });
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
+// Función principal del endpoint
 module.exports = async (req, res) => {
   await connectDB();
 
-  // Cabeceras CORS
+  // CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', 'https://jiga-ecru.vercel.app');
+  res.setHeader('Access-Control-Allow-Origin', 'https://jiga-ecru.vercel.app'); // tu frontend
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Respuesta rápida para preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   const { method, url } = req;
 
-  // Registro de usuario
+  // ================= REGISTRO =================
   if (method === 'POST' && url === '/api/auth/register') {
     const { name, email, password } = req.body;
 
@@ -50,14 +50,20 @@ module.exports = async (req, res) => {
     const newUser = new User({ name, email, password: hashedPassword });
     await newUser.save();
 
-    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
-      expiresIn: '1h',
+    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    return res.status(201).json({
+      token,
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email
+      }
     });
+  }
 
-    return res.status(201).json({ token });
-
-  // Login solo con email y password
-  } else if (method === 'POST' && url === '/api/auth/login') {
+  // ================= LOGIN =================
+  else if (method === 'POST' && url === '/api/auth/login') {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -74,23 +80,31 @@ module.exports = async (req, res) => {
       return res.status(400).json({ message: 'Contraseña incorrecta' });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '1h',
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    return res.status(200).json({
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email
+      }
     });
+  }
 
-    return res.status(200).json({ token });
-
-  // Obtener lista de usuarios
-  } else if (method === 'GET' && url === '/api/auth/users') {
+  // ================= LISTA DE USUARIOS (opcional) =================
+  else if (method === 'GET' && url === '/api/auth/users') {
     try {
-      const users = await User.find({}, '-password');
+      const users = await User.find({}, '-password'); // excluye la contraseña
       return res.status(200).json(users);
     } catch (error) {
       console.error('Error al obtener usuarios:', error);
       return res.status(500).json({ message: 'Error del servidor' });
     }
+  }
 
-  } else {
+  // ================= MÉTODO NO PERMITIDO =================
+  else {
     return res.status(405).json({ message: 'Método no permitido' });
   }
 };
