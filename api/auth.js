@@ -20,19 +20,20 @@ const User = mongoose.models.User || mongoose.model('User', UserSchema);
 module.exports = async (req, res) => {
   await connectDB();
 
-  // Agregar cabeceras CORS
+  // Cabeceras CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', 'https://jiga-ecru.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Manejo de preflight OPTIONS
+  // Respuesta rápida para preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   const { method, url } = req;
 
+  // Registro de usuario
   if (method === 'POST' && url === '/api/auth/register') {
     const { name, email, password } = req.body;
 
@@ -55,21 +56,22 @@ module.exports = async (req, res) => {
 
     return res.status(201).json({ token });
 
+  // Login solo con name y password
   } else if (method === 'POST' && url === '/api/auth/login') {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
 
-    if (!name || !email || !password) {
+    if (!name || !password) {
       return res.status(400).json({ message: 'Todos los campos son obligatorios' });
     }
 
-    const user = await User.findOne({ email });
-    if (!user || user.name !== name) {
-      return res.status(400).json({ message: 'Credenciales incorrectas' });
+    const user = await User.findOne({ name });
+    if (!user) {
+      return res.status(400).json({ message: 'Usuario no encontrado' });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Credenciales incorrectas' });
+      return res.status(400).json({ message: 'Contraseña incorrecta' });
     }
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
@@ -78,6 +80,7 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({ token });
 
+  // Obtener lista de usuarios
   } else if (method === 'GET' && url === '/api/auth/users') {
     try {
       const users = await User.find({}, '-password');
@@ -86,6 +89,7 @@ module.exports = async (req, res) => {
       console.error('Error al obtener usuarios:', error);
       return res.status(500).json({ message: 'Error del servidor' });
     }
+
   } else {
     return res.status(405).json({ message: 'Método no permitido' });
   }
