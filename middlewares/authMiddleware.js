@@ -1,18 +1,17 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
-const authMiddleware = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
+export function verifyToken(req) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '');
+
   if (!token) {
-    return res.status(401).json({ message: 'Acceso denegado. Token no proporcionado.' });
+    throw new Error('Token no proporcionado');
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // Puedes agregar más información si es necesario
-    next();
-  } catch (error) {
-    res.status(400).json({ message: 'Token inválido.' });
+    return decoded; // Devuelve el payload (ej. userId, email)
+  } catch (err) {
+    throw new Error('Token inválido');
   }
-};
-
-module.exports = authMiddleware;
+}
