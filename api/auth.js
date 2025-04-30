@@ -1,73 +1,53 @@
-const express = require('express');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const connectDB = require('../lib/db');
-const User = require('../models/User');
 
-const router = express.Router();
+// Conexión a MongoDB
+const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) return;
+  return mongoose.connect(process.env.MONGODB_URI);
+};
 
-// Middleware para conectar a la base de datos
-router.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (error) {
-    res.status(500).json({ message: 'Error de conexión a la base de datos' });
-  }
+// Modelo de Usuario
+const UserSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  password: String,
 });
 
-// Registro de usuario
-router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
-  try {
+module.exports = async (req, res) => {
+  await connectDB();
+
+  if (req.method === 'POST') {
+    const { name, email, password } = req.body;
+
+    // Validaciones básicas
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Todos los campos son obligatorios' });
+    }
+
     // Verificar si el usuario ya existe
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'El usuario ya existe' });
     }
 
-    // Hash de la contraseña
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Crear nuevo usuario
     const newUser = new User({ name, email, password: hashedPassword });
     await newUser.save();
 
-    res.status(201).json({ message: 'Usuario registrado exitosamente' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error al registrar el usuario' });
+    // Generar token
+    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
+      expiresIn: '1h',
+    });
+
+    return res.status(201).json({ token });
+  } else {
+    return res.status(405).json({ message: 'Método no permitido' });
   }
-});
-
-// Login de usuario
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    // Verificar si el usuario existe
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Credenciales inválidas' });
-    }
-
-    // Verificar la contraseña
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Credenciales inválidas' });
-    }
-
-    // Generar token JWT
-    const token = jwt.sign(
-      { userId: user._id, name: user.name, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    res.status(200).json({ token });
-  } catch (error) {
-    res.status(500).json({ message: 'Error al iniciar sesión' });
-  }
-});
-
-module.exports = router;
+};

@@ -1,16 +1,9 @@
 {
   "name": "jiga-backend",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vercel dev"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -20,6 +13,6 @@
     "mongoose": "^8.14.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "vercel": "^41.0.2"
   }
 }
