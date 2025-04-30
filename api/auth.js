@@ -56,15 +56,15 @@ module.exports = async (req, res) => {
 
     return res.status(201).json({ token });
 
-  // Login solo con name y password
+  // Login solo con email y password
   } else if (method === 'POST' && url === '/api/auth/login') {
-    const { name, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!name || !password) {
+    if (!email || !password) {
       return res.status(400).json({ message: 'Todos los campos son obligatorios' });
     }
 
-    const user = await User.findOne({ name });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Usuario no encontrado' });
     }
