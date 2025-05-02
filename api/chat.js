@@ -21,7 +21,6 @@ module.exports = async (req, res) => {
   try {
     await connectDB();
 
-    // Guarda mensaje del usuario
     await Message.create({ role: 'user', content: message });
 
     const completion = await openai.createChatCompletion({
@@ -31,12 +30,11 @@ module.exports = async (req, res) => {
 
     const botResponse = completion.data.choices[0].message.content.trim();
 
-    // Guarda respuesta del bot
     await Message.create({ role: 'assistant', content: botResponse });
 
     res.status(200).json({ response: botResponse });
   } catch (error) {
-    console.error('Error en /api/chat:', error);
+    console.error('Error en /api/chat:', error.response?.data || error.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
