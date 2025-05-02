@@ -1,54 +1,38 @@
-import connectDB from '../../lib/db';
-import User from '../../models/User';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const User = require('../../models/User');
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Método no permitido' });
-  }
+mongoose.connect(process.env.MONGODB_URI);
 
-  await connectDB();
+module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', 'https://jiga-ecru.vercel.app');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  if (req.method !== 'POST') return res.status(405).json({ message: 'Método no permitido' });
 
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
+    return res.status(400).json({ message: 'Todos los campos son obligatorios' });
   }
 
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'El correo electrónico ya está registrado.' });
+      return res.status(400).json({ message: 'El usuario ya existe' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-    });
-
+    const newUser = new User({ name, email, password: hashedPassword });
     await newUser.save();
 
-    const token = jwt.sign(
-      { userId: newUser._id, email: newUser.email },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
-    );
-
-    res.status(201).json({
-      message: 'Usuario registrado exitosamente.',
-      token,
-      user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-      },
-    });
+    res.status(201).json({ message: 'Usuario registrado exitosamente' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error en el servidor.' });
+    res.status(500).json({ message: 'Error en el servidor' });
   }
-}
+};
