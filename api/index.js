@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const authRoutes = require('../routes/authRoutes');
+const productRoutes = require('../routes/productRoutes'); // ✅ LÍNEA AÑADIDA
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Rutas
 app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes); // ✅ LÍNEA AÑADIDA
 
 // Conexión a MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
